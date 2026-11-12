@@ -1,0 +1,7 @@
+/* Injected on x.com. Only our own classes; X's own styles are left alone. */
+.xrf-collapsed > :not(.xrf-bar) { display: none !important; }
+.xrf-removed { display: none !important; }
+.xrf-bar { display: block; padding: 10px 16px; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: rgb(113, 118, 123); cursor: default; }
+div[role="link"].xrf-collapsed > .xrf-bar { padding: 8px 12px; }
+.xrf-bar button { padding: 0; border: 0; background: none; color: rgb(29, 155, 240); font: inherit; cursor: pointer; }
+.xrf-bar button:hover { text-decoration: underline; }

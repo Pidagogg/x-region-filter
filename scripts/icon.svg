@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- City Compare's coral rounded square; a globe ring with a white filter funnel over it -->
+  <rect x="2" y="2" width="124" height="124" rx="28" fill="#ff5c42"/>
+  <circle cx="64" cy="64" r="40" fill="none" stroke="#fff" stroke-width="7" opacity="0.55"/>
+  <ellipse cx="64" cy="64" rx="17" ry="40" fill="none" stroke="#fff" stroke-width="5" opacity="0.55"/>
+  <path d="M30 38 H98 L72 70 V96 L56 88 V70 Z" fill="#fff" stroke="#ff5c42" stroke-width="5" stroke-linejoin="round"/>
+</svg>
