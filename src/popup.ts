@@ -1,13 +1,18 @@
 // ==== Toolbar popup ====
 // On/off, how matching posts are hidden, the region picker, the always-shown
-// accounts, a local counter and one dismissible W flow card. Every change is
-// saved at once; the x.com tabs pick it up through storage.onChanged.
+// accounts, a status line, a local counter and one dismissible W flow card.
+// Every change is saved at once as a change to what is stored now (store-core.ts),
+// so it can't undo a change an x.com tab made meanwhile; the tabs pick it up
+// through storage.onChanged.
 import browser from "webextension-polyfill";
-import { areaName, countryName, promoUrl, regionName, t } from "./i18n.ts";
+import type { GuardState } from "./guard.ts";
+import { areaName, clock, countryName, promoUrl, regionName, t } from "./i18n.ts";
 import { isFirefox } from "./platform.ts";
 import { areaKey, countryKey, normalize, REGIONS, regionState, toggleKey, toggleRegion, type Region } from "./regions.ts";
 import type { Settings } from "./settings.ts";
-import { getHidden, getSettings, updateSettings, watchHidden } from "./store.ts";
+import { deriveStatus, type Status } from "./status.ts";
+import type { SettingsChange } from "./store-core.ts";
+import { disallowHandle, getHidden, getLookupState, getSettings, updateSettings, watchHidden, watchLookupState, watchSettings } from "./store.ts";
 
 const HOSTS = { origins: ["https://x.com/*", "https://twitter.com/*"] };
 
@@ -33,8 +38,8 @@ let s: Settings;
 const open = new Set<string>();
 let query = "";
 
-async function save(patch: Partial<Settings>) {
-  s = await updateSettings(patch);
+async function save(change: SettingsChange) {
+  s = await updateSettings(change);
   render();
 }
 
@@ -44,7 +49,7 @@ function regionBlock(r: Region, selected: Set<string>) {
   const box = el("div", "rf-region");
   const head = el("div", "rf-region-head");
   const state = regionState(r, selected);
-  const whole = checkbox(regionName(r.id), state === "all", (on) => save({ selected: toggleRegion(r, s.selected, on) }), "rf-check rf-region-name");
+  const whole = checkbox(regionName(r.id), state === "all", (on) => save((cur) => ({ selected: toggleRegion(r, cur.selected, on) })), "rf-check rf-region-name");
   whole.box.indeterminate = state === "some";
   whole.box.title = t.wholeRegion;
   const n = [...r.countries.map((c) => countryKey(c.code)), ...r.areas.map(areaKey)].filter((k) => selected.has(k)).length;
@@ -60,10 +65,10 @@ function regionBlock(r: Region, selected: Set<string>) {
   if (open.has(r.id)) {
     const body = el("div", "rf-region-body");
     body.append(el("p", "rf-sub", t.areas));
-    for (const a of r.areas) body.append(checkbox(areaName(a), selected.has(areaKey(a)), (on) => save({ selected: toggleKey(s.selected, areaKey(a), on) })).row);
+    for (const a of r.areas) body.append(checkbox(areaName(a), selected.has(areaKey(a)), (on) => save((cur) => ({ selected: toggleKey(cur.selected, areaKey(a), on) }))).row);
     body.append(el("p", "rf-sub", t.countries));
     const sorted = [...r.countries].sort((a, b) => countryName(a).localeCompare(countryName(b)));
-    for (const c of sorted) body.append(checkbox(countryName(c), selected.has(countryKey(c.code)), (on) => save({ selected: toggleKey(s.selected, countryKey(c.code), on) })).row);
+    for (const c of sorted) body.append(checkbox(countryName(c), selected.has(countryKey(c.code)), (on) => save((cur) => ({ selected: toggleKey(cur.selected, countryKey(c.code), on) }))).row);
     box.append(body);
   }
   return box;
@@ -74,10 +79,10 @@ function searchResults(selected: Set<string>) {
   const list = el("div", "rf-region-body");
   for (const r of REGIONS) {
     for (const a of r.areas)
-      if (normalize(a).includes(q) || normalize(areaName(a)).includes(q)) list.append(checkbox(areaName(a), selected.has(areaKey(a)), (on) => save({ selected: toggleKey(s.selected, areaKey(a), on) })).row);
+      if (normalize(a).includes(q) || normalize(areaName(a)).includes(q)) list.append(checkbox(areaName(a), selected.has(areaKey(a)), (on) => save((cur) => ({ selected: toggleKey(cur.selected, areaKey(a), on) }))).row);
     for (const c of r.countries)
       if ([c.name, ...c.aliases, countryName(c)].some((n) => normalize(n).includes(q)))
-        list.append(checkbox(`${countryName(c)} · ${regionName(r.id)}`, selected.has(countryKey(c.code)), (on) => save({ selected: toggleKey(s.selected, countryKey(c.code), on) })).row);
+        list.append(checkbox(`${countryName(c)} · ${regionName(r.id)}`, selected.has(countryKey(c.code)), (on) => save((cur) => ({ selected: toggleKey(cur.selected, countryKey(c.code), on) }))).row);
   }
   if (!list.children.length) list.append(el("p", "rf-hint", t.noMatch));
   return list;
@@ -101,6 +106,30 @@ searchInput.addEventListener("input", () => {
 });
 
 const counter = el("p", "rf-hint");
+
+// ---- status line ----
+
+const statusLine = el("p", "rf-status");
+statusLine.setAttribute("role", "status");
+let guard: GuardState | null = null;
+
+function statusText(st: Status): string {
+  switch (st.kind) {
+    case "off": return t.statusOff;
+    case "loggedOut": return t.statusLoggedOut;
+    case "broken": return t.statusBroken;
+    case "paused": return t.statusPaused(clock(st.until));
+    case "hourly": return t.statusHourly(clock(st.until));
+    case "active": return t.statusActive;
+  }
+}
+
+function paintStatus() {
+  if (!guard) return;
+  const st = deriveStatus(s, guard, Date.now());
+  statusLine.dataset.kind = st.kind;
+  statusLine.textContent = statusText(st);
+}
 const grantBox = el("div");
 
 function render() {
@@ -135,7 +164,8 @@ function render() {
   if (!s.selected.length) pick.append(el("p", "rf-hint", t.selectedNone));
   renderPicker();
 
-  const parts: HTMLElement[] = [head, el("p", "rf-hint", t.tagline), grantBox, mode, pick];
+  paintStatus();
+  const parts: HTMLElement[] = [head, statusLine, el("p", "rf-hint", t.tagline), grantBox, mode, pick];
   if (s.allow.length) {
     const allow = el("div", "rf-card");
     allow.append(el("b", undefined, t.allowTitle));
@@ -145,7 +175,10 @@ function render() {
       const x = el("button", undefined, "×");
       x.type = "button";
       x.title = t.remove;
-      x.addEventListener("click", () => save({ allow: s.allow.filter((a) => a !== h) }));
+      x.addEventListener("click", async () => {
+        s = await disallowHandle(h);
+        render();
+      });
       li.append(el("span", undefined, `@${h}`), x);
       ul.append(li);
     }
@@ -203,6 +236,18 @@ async function checkGrant() {
   if (!promoHidden) promo = makePromo();
   counter.textContent = t.hiddenCount(await getHidden());
   watchHidden((n) => (counter.textContent = t.hiddenCount(n)));
+  guard = await getLookupState();
+  watchLookupState((g) => {
+    guard = g;
+    paintStatus();
+  });
+  // a pause ends with time alone, without a storage change
+  setInterval(paintStatus, 20_000);
+  // an x.com tab may change the settings ("Always show") while the popup is open
+  watchSettings((next) => {
+    s = next;
+    render();
+  });
   render();
   await checkGrant();
 })();

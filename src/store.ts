@@ -3,21 +3,16 @@
 // - regions: the region cache (cache.ts)
 // - hiddenCount: how many posts were hidden, shown in the popup
 // - promoHidden: the W flow card was closed
-// - lookupGuard: lookup times of the last hour and the pause state (guard.ts)
+// - lookupGuard: lookup times of the last hour, the pause state and whether
+//   lookups work, for the popup's status line (guard.ts)
+// How changes from several pages are kept from undoing each other: store-core.ts.
 import { kv } from "./platform.ts";
-import { createGuard } from "./guard.ts";
+import { createGuard, GUARD_KEY, normalizeGuard, type GuardState } from "./guard.ts";
 import { normalizeSettings, type Settings } from "./settings.ts";
+import { createStore } from "./store-core.ts";
 import type { CacheMap, CacheStore } from "./cache.ts";
 
-export async function getSettings(): Promise<Settings> {
-  return normalizeSettings((await kv.get("settings")).settings);
-}
-
-export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
-  const next = { ...(await getSettings()), ...patch };
-  await kv.set({ settings: next });
-  return next;
-}
+export const { getSettings, updateSettings, allowHandle, disallowHandle, addHidden, getHidden } = createStore(kv);
 
 export function watchSettings(cb: (s: Settings) => void) {
   kv.onChanged((c) => {
@@ -32,13 +27,12 @@ export const cacheStore: CacheStore = {
 
 export const lookupGuard = createGuard(kv);
 
-export async function addHidden(n: number) {
-  const { hiddenCount = 0 } = (await kv.get("hiddenCount")) as { hiddenCount?: number };
-  await kv.set({ hiddenCount: hiddenCount + n });
-}
+export const getLookupState = async (): Promise<GuardState> => normalizeGuard((await kv.get(GUARD_KEY))[GUARD_KEY]);
 
-export async function getHidden(): Promise<number> {
-  return ((await kv.get("hiddenCount")).hiddenCount as number | undefined) || 0;
+export function watchLookupState(cb: (g: GuardState) => void) {
+  kv.onChanged((c) => {
+    if (GUARD_KEY in c) cb(normalizeGuard(c[GUARD_KEY].newValue));
+  });
 }
 
 export function watchHidden(cb: (n: number) => void) {

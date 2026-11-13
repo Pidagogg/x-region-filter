@@ -32,6 +32,24 @@ const en = {
   note: "Lookups use your own X session and go only to X. X may limit them, so new accounts can take a moment to be checked.",
   promoTitle: "W flow — automate your feeds and alerts",
   promo: "Connect apps, feeds and AI by dragging blocks, no code. Free to start →",
+  // the popup's status line (status.ts)
+  statusOff: "Filter off",
+  statusLoggedOut: "Log in to X to check regions",
+  statusPaused: (time: string) => `Paused until ${time} (X is limiting requests)`,
+  statusHourly: (time: string) => `Hourly limit reached, resumes at ${time}`,
+  statusBroken: "X changed something — lookups failing; update the extension",
+  statusActive: "Active",
+  // the welcome page, opened once after install
+  welcomeTitle: "Welcome to Region Filter for X",
+  welcomeLead: "Three steps, and posts from accounts based in the regions you pick collapse on x.com. Regions are based on what X shows in About this account.",
+  step1Title: "Pick what to hide",
+  step1: "One click picks a whole region. Single countries and broad areas are in the toolbar popup.",
+  step2Title: "Open X, logged in",
+  step2: "Lookups use your own X session and go only to X. New accounts can take a moment to be checked.",
+  openX: "Open x.com",
+  step3Title: "Change it any time",
+  step3: "Matching posts collapse to a slim bar: Show opens one, Always show @name keeps an account visible. Pin the extension to the toolbar to change anything later.",
+  privacy: "Nothing is collected or tracked. Your choices stay in this browser.",
 };
 const ru: typeof en = {
   name: "Region Filter for X",
@@ -62,6 +80,22 @@ const ru: typeof en = {
   note: "Запросы идут только в X, от вашей учётной записи. X может их ограничивать, поэтому новые аккаунты проверяются не сразу.",
   promoTitle: "W flow — автоматизируйте ленты и оповещения",
   promo: "Соединяйте сервисы, ленты и ИИ из блоков, без кода. Бесплатный старт →",
+  statusOff: "Фильтр выключен",
+  statusLoggedOut: "Войдите в X, чтобы проверять регионы",
+  statusPaused: (time: string) => `Пауза до ${time} (X ограничивает запросы)`,
+  statusHourly: (time: string) => `Лимит на час исчерпан, продолжим в ${time}`,
+  statusBroken: "X что-то изменил — запросы не проходят; обновите расширение",
+  statusActive: "Работает",
+  welcomeTitle: "Добро пожаловать в Region Filter for X",
+  welcomeLead: "Три шага — и посты аккаунтов из выбранных регионов на x.com сворачиваются. Регион берётся из данных X в разделе «Об этом аккаунте».",
+  step1Title: "Выберите, что скрывать",
+  step1: "Один клик выбирает весь регион. Отдельные страны и области — во всплывающем окне на панели инструментов.",
+  step2Title: "Откройте X и войдите",
+  step2: "Запросы идут только в X, от вашей учётной записи. Новые аккаунты проверяются не сразу.",
+  openX: "Открыть x.com",
+  step3Title: "Меняйте когда угодно",
+  step3: "Подходящие посты сворачиваются в тонкую полоску: «Показать» раскрывает пост, «Всегда показывать @имя» оставляет аккаунт видимым. Закрепите расширение на панели, чтобы потом всё менять.",
+  privacy: "Ничего не собирается и не отслеживается. Ваш выбор хранится только в этом браузере.",
 };
 
 const REGION_NAMES: Record<"en" | "ru", Record<RegionId, string>> = {
@@ -81,7 +115,9 @@ const AREAS_RU: Record<string, string> = {
 };
 
 export type Texts = typeof en;
-export const lang: "en" | "ru" = /^ru|^uk|^be|^kk/i.test(globalThis.navigator?.language || "") ? "ru" : "en";
+/** Russian only for a Russian browser; Ukrainian, Belarusian and Kazakh users get English, not Russian. */
+export const pickLang = (browserLang: string | undefined): "en" | "ru" => (/^ru(-|$)/i.test(browserLang || "") ? "ru" : "en");
+export const lang = pickLang(globalThis.navigator?.language);
 export const t: Texts = lang === "ru" ? ru : en;
 
 export const regionName = (id: RegionId) => REGION_NAMES[lang][id];
@@ -105,3 +141,6 @@ export function placeName(value: string): string {
 }
 
 export const promoUrl = (place: string) => promoLink(place);
+
+/** A time of day ("14:30") in the browser's own format. */
+export const clock = (ms: number) => new Date(ms).toLocaleTimeString(globalThis.navigator?.language || lang, { hour: "2-digit", minute: "2-digit" });

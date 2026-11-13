@@ -30,6 +30,9 @@ function manifest(target) {
     host_permissions: SITES,
     content_scripts: [{ matches: SITES, js: ["content.js"], css: ["tokens.css", "content.css"], run_at: "document_idle" }],
   };
+  // the background only opens the welcome page after install: a service worker
+  // in Chrome, an event page in Firefox (which has no MV3 service workers)
+  m.background = target === "chrome" ? { service_worker: "background.js" } : { scripts: ["background.js"] };
   // the styles use CSS light-dark(), which Chrome has from 123 (Firefox's minimum below is already past it)
   if (target === "chrome") m.minimum_chrome_version = "123";
   if (target === "firefox") {
@@ -62,7 +65,7 @@ for (const target of ["chrome", "firefox"]) {
   fs.rmSync(out, { recursive: true, force: true });
   writeStatic(out, target);
   const options = {
-    entryPoints: { content: "src/content.ts", popup: "src/popup.ts" },
+    entryPoints: { content: "src/content.ts", popup: "src/popup.ts", welcome: "src/welcome.ts", background: "src/background.ts" },
     outdir: out,
     bundle: true,
     format: "iife",

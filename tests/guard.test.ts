@@ -2,7 +2,7 @@
 // budget, all shared through one storage so every tab and reload honours them.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BREAKER_PAUSE_MS, createGuard, HOUR, HOURLY_BUDGET } from "../src/guard.ts";
+import { BREAKER_PAUSE_MS, createGuard, HOUR, HOURLY_BUDGET, normalizeGuard } from "../src/guard.ts";
 
 function memoryKV() {
   const data: Record<string, unknown> = {};
@@ -80,4 +80,19 @@ test("at most 300 lookups per rolling hour, counted across tabs", async () => {
   assert.equal(await a.check(), first + HOUR - now, "wait until the oldest lookup is an hour old");
   now = first + HOUR;
   assert.equal(await b.check(), 0);
+});
+
+test("the shared state also says whether the user is logged out and whether X rejects every query id", async () => {
+  const kv = memoryKV();
+  const g = createGuard(kv, () => 5_000);
+  const state = () => normalizeGuard(kv.data.lookupGuard);
+  await g.record({ ok: false, status: 401, skipped: true });
+  assert.equal(state().loggedOut, true);
+  await g.record({ ok: false, status: 404, stale: true });
+  assert.equal(state().loggedOut, false);
+  assert.equal(state().stale, true);
+  await g.record({ ok: false, status: 500 });
+  assert.equal(state().stale, true, "an unrelated failure does not clear it");
+  await g.record({ ok: true, region: null });
+  assert.deepEqual([state().loggedOut, state().stale], [false, false]);
 });

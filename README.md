@@ -41,10 +41,13 @@ To load it unpacked:
 - `src/content.ts`: finds posts on x.com, asks for regions, collapses or removes posts.
 - `src/x-api.ts`: everything about X's endpoint (see above).
 - `src/queue.ts`: one request at a time, dedupe, backoff on 429.
+- `src/retry.ts`: when a failed lookup is asked again (after the pause, or once X answers again; 3 retries per page at most).
 - `src/guard.ts`: limits shared by all tabs through storage: 300 lookups per hour, wait when X's rate limit runs low, 30-minute pause after 3 failures in a row.
 - `src/cache.ts`: handle → region cache with TTLs and a cap.
 - `src/regions.ts`: countries and broad areas grouped by region, and how X's strings are matched.
 - `src/settings.ts`: the settings and the hide rule.
-- `src/popup.ts`, `static/`: the popup. `src/i18n.ts`: English and Russian.
+- `src/store-core.ts`: settings and counter changes that re-read storage before writing, so the popup and tabs don't undo each other.
+- `src/status.ts`: the popup's status line (off, logged out, paused, hourly limit, X changed, active).
+- `src/popup.ts`, `static/`: the popup. `src/welcome.ts`: the welcome page, opened once after install by `src/background.ts`. `src/i18n.ts`: English and Russian.
 
-The popup has one small, dismissible link to W flow, a workflow automation tool by the same developer.
+The popup has one small, dismissible link to W flow (the welcome page has the same card), a workflow automation tool by the same developer.

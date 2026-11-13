@@ -1,4 +1,4 @@
-/* ==== The popup ====
+/* ==== The popup and the welcome page ====
    Liquid glass: see-through panes over a calm colour field, each with a bright
    specular edge, a soft inner shadow and a depth shadow. All colours, shadows,
    radii and timings come from tokens.css (shared with the bars on x.com). */
@@ -9,7 +9,7 @@ body { margin: 0; font: 14px/1.45 var(--xrf-font); color: var(--xrf-ink); }
 
 /* The colour field. Nothing sits behind a popup, so this is what the glass
    refracts; it stays put while the panes scroll over it. */
-.popup::before {
+.popup::before, .welcome::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -162,6 +162,48 @@ h1 { font-size: 16px; line-height: 1.25; margin: 0; letter-spacing: -0.01em; }
 .rf-promo a { flex: 1; min-width: 0; color: var(--xrf-muted); text-decoration: none; border-radius: 8px; }
 .rf-promo b { color: var(--xrf-ink); font-size: 12.5px; }
 
+/* ---- the status line: a pill with a coloured dot ---- */
+
+.rf-status { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding: 6px 12px; border-radius: var(--xrf-r-pill); background: var(--xrf-tint); box-shadow: inset 0 1px 0 var(--xrf-rim); font-size: 12.5px; font-weight: 600; }
+.rf-status:empty { display: none; }
+.rf-status::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #23a35e; box-shadow: 0 0 0 3px rgba(35, 163, 94, 0.22); }
+.rf-status[data-kind="off"]::before { background: var(--xrf-control-line); box-shadow: none; }
+.rf-status[data-kind="paused"]::before, .rf-status[data-kind="hourly"]::before { background: #e39b12; box-shadow: 0 0 0 3px rgba(227, 155, 18, 0.24); }
+.rf-status[data-kind="loggedOut"]::before, .rf-status[data-kind="broken"]::before { background: var(--xrf-accent); box-shadow: 0 0 0 3px var(--xrf-accent-tint); }
+
+/* ---- the welcome page: the same panes, wider ---- */
+
+.welcome { max-width: 640px; margin: 0 auto; padding: 40px 20px 48px; position: relative; isolation: isolate; font-size: 15px; }
+.welcome h1 { font-size: 26px; margin-bottom: 8px; }
+.welcome .rf-lead { color: var(--xrf-muted); margin: 0 0 18px; }
+.welcome .rf-card { margin-top: 14px; padding: 16px 18px 16px 58px; }
+.rf-step-n { position: absolute; left: 16px; top: 15px; display: grid; place-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--xrf-accent-fill); color: #fff; font-weight: 700; font-size: 14px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 3px 8px -3px rgba(226, 64, 31, 0.75); }
+.welcome .rf-card > b { font-size: 16px; margin-bottom: 2px; }
+.welcome .rf-card p { margin: 0; color: var(--xrf-muted); }
+.rf-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.rf-chip, .rf-cta {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: var(--xrf-r-pill);
+  background: var(--xrf-control);
+  box-shadow: var(--xrf-edge), inset 0 0 0 1px var(--xrf-hairline), var(--xrf-lift-small);
+  color: var(--xrf-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color var(--xrf-fast) var(--xrf-ease), box-shadow var(--xrf-fast) var(--xrf-ease), transform var(--xrf-fast) var(--xrf-ease);
+}
+.rf-chip[aria-pressed="true"], .rf-cta { background: var(--xrf-accent-fill); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.22), 0 3px 8px -3px rgba(226, 64, 31, 0.75); }
+.rf-chip[aria-pressed="mixed"] { background: var(--xrf-accent-tint); }
+.rf-chip:active, .rf-cta:active { transform: scale(0.95); }
+.rf-cta { display: inline-block; margin-top: 12px; }
+.welcome .rf-hint { margin-top: 10px; }
+.welcome .rf-promo { margin-top: 18px; font-size: 13px; padding: 14px 18px; }
+.welcome .rf-promo b { font-size: 14px; }
+.welcome .rf-note { margin-top: 16px; text-align: center; }
+
 /* ---- states ---- */
 
 :focus-visible { outline: 2px solid var(--xrf-accent-ink); outline-offset: 2px; }
@@ -170,6 +212,7 @@ h1 { font-size: 16px; line-height: 1.25; margin: 0; letter-spacing: -0.01em; }
   .rf-check:hover input:not(:checked):not(:indeterminate) { background: var(--xrf-control); }
   .rf-expand:hover, .rf-allow button:hover, .rf-promo button:hover, .rf-button:hover { background: var(--xrf-control-hover); color: var(--xrf-ink); }
   .rf-link:hover { background: var(--xrf-accent-tint); }
+  .rf-chip:hover:not([aria-pressed="true"]) { background: var(--xrf-control-hover); }
   .rf-promo:hover { transform: translateY(-1px); box-shadow: var(--xrf-edge-soft), 0 2px 3px -1px var(--xrf-drop), 0 18px 34px -16px var(--xrf-drop); }
 }
 @media (pointer: coarse) {
@@ -183,6 +226,7 @@ h1 { font-size: 16px; line-height: 1.25; margin: 0; letter-spacing: -0.01em; }
 }
 /* Windows high contrast drops the shadows that draw the controls, so they get real borders */
 @media (forced-colors: active) {
-  .rf-card, .rf-promo, .rf-check input, .rf-switch input, .rf-card input[type="search"], .rf-expand, .rf-allow button, .rf-promo button, .rf-button { border: 1px solid CanvasText; }
+  .rf-card, .rf-promo, .rf-check input, .rf-switch input, .rf-card input[type="search"], .rf-expand, .rf-allow button, .rf-promo button, .rf-button, .rf-chip, .rf-cta, .rf-status { border: 1px solid CanvasText; }
+  .rf-chip[aria-pressed="true"] { background: Highlight; color: HighlightText; }
   .rf-check input:checked, .rf-check input:indeterminate, .rf-switch input:checked { background: Highlight; }
 }

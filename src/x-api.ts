@@ -52,17 +52,22 @@ export function scriptUrls(doc: Document, entries: { name: string; initiatorType
     .slice(0, 40);
 }
 
+const resourceEntries = () => (globalThis.performance?.getEntriesByType?.("resource") ?? []) as PerformanceResourceTiming[];
+
 /**
  * 1. a request the page already made (if the user opened an About page), 2. X's
  * script files, which the browser already has cached. null: nothing found.
+ * Files in `scanned` are skipped, and every file read is added to it.
  */
-export async function discoverQueryId(doc: Document, getText: (url: string) => Promise<string>): Promise<string | null> {
-  const entries = (globalThis.performance?.getEntriesByType?.("resource") ?? []) as PerformanceResourceTiming[];
+export async function discoverQueryId(doc: Document, getText: (url: string) => Promise<string>, scanned: Set<string> = new Set()): Promise<string | null> {
+  const entries = resourceEntries();
   for (const e of entries) {
     const id = extractQueryId(e.name);
     if (id) return id;
   }
   for (const url of scriptUrls(doc, entries)) {
+    if (scanned.has(url)) continue;
+    scanned.add(url);
     try {
       const id = extractQueryId(await getText(url));
       if (id) return id;
@@ -189,26 +194,42 @@ type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 // a hung request would hold up the whole queue
 export const TIMEOUT_MS = 15_000;
+// when no query id is left, look for one again after this long (or as soon as X loads new script files)
+export const REDISCOVER_MS = 10 * 60 * 1000;
+export const MAX_DISCOVERIES = 5;
 
 /**
  * The lookup the queue calls. `pageFetch` must send the request as the x.com
  * page would (same origin, the user's cookies): plain fetch in Chrome's
  * content scripts, content.fetch in Firefox's.
  */
-export function createLookup(pageFetch: Fetch, doc: Document = document, origin: () => string = () => location.origin) {
-  // Discovery runs once per page load, and "nothing found" is kept too:
-  // rescanning X's bundles after every rejected request was an endless loop.
-  let found: Promise<string | null> | null = null;
+export function createLookup(pageFetch: Fetch, doc: Document = document, origin: () => string = () => location.origin, now: () => number = Date.now) {
+  // Discovery runs at the first lookup. It runs again only while no id is left
+  // to try, and then only when X has loaded script files we haven't read (lazy
+  // chunks) or REDISCOVER_MS after the last run, at most MAX_DISCOVERIES times
+  // per page: rescanning after every rejected request was an endless loop.
+  let found: string | null = null;
+  let runs = 0;
+  let lastRun = 0;
+  const scanned = new Set<string>();
   const failed = new Set<string>();
   const getText = async (url: string) => (await pageFetch(url, { credentials: "omit", cache: "force-cache", signal: AbortSignal.timeout(TIMEOUT_MS) })).text();
+  const unread = () => scriptUrls(doc, resourceEntries()).some((u) => !scanned.has(u));
 
-  return async function fetchRegion(handle: string): Promise<FetchResult> {
+  async function discover() {
+    if (runs > 0 && (nextQueryId(found, failed) || runs >= MAX_DISCOVERIES || (now() - lastRun < REDISCOVER_MS && !unread()))) return;
+    runs++;
+    lastRun = now();
+    found = (await discoverQueryId(doc, getText, scanned).catch(() => null)) ?? found;
+  }
+
+  async function fetchRegion(handle: string): Promise<FetchResult> {
     const csrf = csrfFrom(doc.cookie);
     if (!csrf) return { ok: false, status: 401, skipped: true }; // not logged in
-    found ??= discoverQueryId(doc, getText).catch(() => null);
-    let last: FetchResult = { ok: false };
+    await discover();
+    let last: Extract<FetchResult, { ok: false }> = { ok: false };
     // a stale query id (400/404): try the next one; once all have failed, nothing more is sent
-    for (let qid = nextQueryId(await found, failed); qid; qid = nextQueryId(await found, failed)) {
+    for (let qid = nextQueryId(found, failed); qid; qid = nextQueryId(found, failed)) {
       const { url, init } = buildRequest(origin(), qid, handle, csrf);
       const res = await pageFetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
       const waitMs = rateWaitMs(res.headers);
@@ -228,6 +249,10 @@ export function createLookup(pageFetch: Fetch, doc: Document = document, origin:
       }
       return { ...parseRegion(json), ...hint };
     }
-    return last;
-  };
+    // every id we know was rejected: X changed something (the popup says so)
+    return { ...last, stale: true };
+  }
+  /** how often discovery ran on this page (for the tests) */
+  fetchRegion.discoveries = () => runs;
+  return fetchRegion;
 }

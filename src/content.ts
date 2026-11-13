@@ -8,7 +8,8 @@ import { RegionCache } from "./cache.ts";
 import { placeName, t } from "./i18n.ts";
 import { createQueue } from "./queue.ts";
 import { decide, type Decision, type Lookup, type Settings } from "./settings.ts";
-import { addHidden, cacheStore, getSettings, lookupGuard, updateSettings, watchSettings } from "./store.ts";
+import { createRetryPolicy } from "./retry.ts";
+import { addHidden, allowHandle, cacheStore, getSettings, lookupGuard, watchSettings } from "./store.ts";
 import { themeFromBackground, type Theme } from "./theme.ts";
 import { createLookup } from "./x-api.ts";
 
@@ -81,7 +82,9 @@ let countTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ---- lookups ----
 
+// handles asked, or being asked; a failed one leaves it and waits for the retry policy
 const asked = new Set<string>();
+const retry = createRetryPolicy();
 
 function remember(handle: string, res: Lookup) {
   results.delete(handle);
@@ -95,7 +98,7 @@ function remember(handle: string, res: Lookup) {
 }
 
 async function request(handle: string) {
-  if (asked.has(handle)) return;
+  if (asked.has(handle) || !retry.canAsk(handle)) return;
   asked.add(handle);
   trimOldest(asked, MAX_REMEMBERED);
   const hit = await cache.get(handle);
@@ -103,11 +106,44 @@ async function request(handle: string) {
   if (hit) res = hit.region === null ? { status: "unknown" } : { status: "known", region: hit.region };
   else {
     res = await queue.lookup(handle);
-    // failures are not stored: the post stays visible and the next page load tries again
-    if (res.status !== "error") await cache.set(handle, res.status === "known" ? res.region : null);
+    // failures are not stored: the post stays visible, and it is asked again later
+    if (res.status === "error") {
+      asked.delete(handle);
+      retry.failed(handle);
+      scheduleRetry();
+    } else {
+      retry.succeeded(handle);
+      await cache.set(handle, res.status === "known" ? res.region : null);
+      // X answers again: failed handles may be due sooner
+      rearm();
+    }
   }
   remember(handle, res);
   applyAll();
+}
+
+/** Watch posts with a due handle again: those near the screen are asked at once, the rest when they come near. */
+function rearm() {
+  if (!needsLookups()) return;
+  const due = new Set(retry.due());
+  if (!due.size) return;
+  for (const [post, tg] of tracked)
+    if ((tg.main && due.has(tg.main.handle)) || (tg.quoted && due.has(tg.quoted.handle))) {
+      near.unobserve(post);
+      near.observe(post);
+    }
+}
+
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleRetry() {
+  const at = retry.nextAt();
+  if (at === null) return;
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    rearm();
+    scheduleRetry();
+  }, Math.max(0, at - Date.now()) + 1000);
 }
 
 // ---- hiding ----
@@ -184,7 +220,7 @@ function makeBar(target: Target, d: Extract<Decision, { hide: true }>): HTMLElem
       apply(target, { hide: false });
     }),
     button(t.alwaysShow(target.handle), () => {
-      if (settings) void updateSettings({ allow: [...new Set([...settings.allow, target.handle])] });
+      void allowHandle(target.handle);
     })
   );
   // clicks anywhere on the bar stay on the bar

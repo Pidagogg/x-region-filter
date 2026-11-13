@@ -3,7 +3,7 @@
 // These are fakes shaped like what we expect; the real X is unverified.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildRequest, createLookup, csrfFrom, extractQueryId, FALLBACK_QUERY_ID, nextQueryId, parseRegion, rateWaitMs, retryAfterMs, scriptUrls } from "../src/x-api.ts";
+import { buildRequest, createLookup, csrfFrom, MAX_DISCOVERIES, REDISCOVER_MS, extractQueryId, FALLBACK_QUERY_ID, nextQueryId, parseRegion, rateWaitMs, retryAfterMs, scriptUrls } from "../src/x-api.ts";
 
 test("finds the query id in bundle text in either order and in a request URL", () => {
   const bundle = `e.exports={queryId:"Ab12Cd34Ef56Gh78",operationName:"UserByScreenName",operationType:"query"},n.exports={queryId:"XRqGa7EeokUU5kppkh13EA",operationName:"AboutAccountQuery",operationType:"query",metadata:{featureSwitches:[]}}`;
@@ -159,4 +159,54 @@ test("not logged in: no request, and it does not count as X failing", async () =
   const lookup = createLookup(async () => (sent++, ok(GOOD)), doc, () => "https://x.com");
   assert.deepEqual(await lookup("a"), { ok: false, status: 401, skipped: true });
   assert.equal(sent, 0);
+});
+
+// ---- discovery retried later ----
+
+test("all ids rejected: the result says the query is stale", async () => {
+  const x = fakeX(() => new Response("bad", { status: 400 }));
+  assert.equal(((await x.lookup("a")) as { stale?: boolean }).stale, true);
+  assert.equal(((await x.lookup("b")) as { stale?: boolean }).stale, true, "also when nothing more is sent");
+});
+
+function lateX() {
+  let now = 0;
+  let bundles = 0;
+  const graphql: string[] = [];
+  const texts: Record<string, string> = { [BUNDLE]: "no ids here" };
+  const doc = { scripts: [{ src: BUNDLE }], cookie: "ct0=tok" } as unknown as { scripts: { src: string }[] } & Document;
+  const pageFetch = async (url: string) => {
+    if (url in texts) {
+      bundles++;
+      return new Response(texts[url]);
+    }
+    graphql.push(url);
+    return url.includes("Lazy1oadedId") ? ok(GOOD) : new Response("", { status: 404 });
+  };
+  const lookup = createLookup(pageFetch, doc, () => "https://x.com", () => now);
+  return { lookup, graphql, texts, doc, bundles: () => bundles, advance: (ms: number) => (now += ms) };
+}
+
+test("a lazy-loaded chunk is scanned on the next lookup, and only the new file", async () => {
+  const x = lateX();
+  assert.equal((await x.lookup("a")).ok, false);
+  const chunk = "https://abs.twimg.com/responsive-web/client-web/bundle.About.1.js";
+  x.texts[chunk] = `{queryId:"Lazy1oadedId",operationName:"AboutAccountQuery"}`;
+  (x.doc.scripts as { src: string }[]).push({ src: chunk });
+  assert.deepEqual(await x.lookup("b"), { ok: true, region: "Germany" });
+  assert.equal(x.bundles(), 2, "main once, the new chunk once");
+});
+
+test("with no new files, discovery is retried only after a while, and a few times at most", async () => {
+  const x = lateX();
+  await x.lookup("a");
+  await x.lookup("b");
+  assert.equal(x.bundles(), 1);
+  assert.equal(x.lookup.discoveries(), 1);
+  for (let i = 0; i < 20; i++) {
+    x.advance(REDISCOVER_MS);
+    await x.lookup(`h${i}`);
+  }
+  assert.equal(x.lookup.discoveries(), MAX_DISCOVERIES);
+  assert.equal(x.bundles(), 1, "files already read are not fetched again");
 });

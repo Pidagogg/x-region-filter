@@ -9,9 +9,9 @@ import type { Lookup } from "./settings.ts";
 /**
  * waitMs: X says its rate limit is nearly used up; pause that long before the
  * next request. skipped: nothing was sent (not logged in), so it says nothing
- * about whether X works.
+ * about whether X works. stale: X rejected every query id we know.
  */
-export type FetchResult = { ok: true; region: string | null; waitMs?: number } | { ok: false; status?: number; retryAfterMs?: number; waitMs?: number; skipped?: boolean };
+export type FetchResult = { ok: true; region: string | null; waitMs?: number } | { ok: false; status?: number; retryAfterMs?: number; waitMs?: number; skipped?: boolean; stale?: boolean };
 
 export interface Gate {
   /** before each request: "paused" = no lookups for now, a number = wait that long first, 0 = go */
