@@ -65,6 +65,9 @@ export function createGuard(kv: Pick<KV, "get" | "set">, now: () => number = Dat
       const s = await load();
       const t = now();
       if (res.waitMs && res.waitMs > 0) s.waitUntil = Math.max(s.waitUntil, t + res.waitMs);
+      // nothing was sent (logged out): give the slot back, or an hour of logged-out
+      // browsing would leave no budget for the moment the user logs in
+      if (!res.ok && res.skipped) s.recent.pop();
       if (res.ok) s.streak = 0;
       else if (res.status !== 429 && !res.skipped && ++s.streak >= BREAKER_FAILURES) {
         s.pausedUntil = t + BREAKER_PAUSE_MS;

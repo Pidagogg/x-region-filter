@@ -1,0 +1,82 @@
+/* ==== Liquid glass tokens ====
+   The one token set for everything the extension draws: the popup (ui.css) and
+   the bars on x.com (content.css). Nothing here is global: the variables live
+   on .xrf-glass, a class only our own elements carry, so on x.com they can't
+   reach X's page and X's CSS can't reach them.
+   Every colour is light-dark(light, dark) and follows the element's
+   color-scheme: the popup follows the system, a bar gets .xrf-light, .xrf-dim
+   or .xrf-dark from the theme X itself is in (src/theme.ts). */
+.xrf-glass {
+  color-scheme: light dark;
+
+  /* text */
+  --xrf-ink: light-dark(#131826, #f1f4fb);
+  --xrf-muted: light-dark(#434c61, #b7c0d3);
+  --xrf-accent: #ff5c42;
+  /* the accent as text or as a focus ring: dark or light enough for AA on glass */
+  --xrf-accent-ink: light-dark(#b02d17, #ffab99);
+  --xrf-accent-fill: linear-gradient(180deg, #ff7a5e, #e2401f);
+  --xrf-accent-tint: light-dark(rgba(255, 92, 66, 0.16), rgba(255, 92, 66, 0.24));
+  --xrf-violet-tint: light-dark(rgba(122, 92, 255, 0.2), rgba(140, 115, 255, 0.26));
+
+  /* surfaces: a pane over the colour field, its near-solid stand-in, and the
+     same glass seen over a flat page (x.com), where there is nothing to blur */
+  --xrf-surface: light-dark(rgba(255, 255, 255, 0.56), rgba(30, 36, 60, 0.5));
+  --xrf-surface-solid: light-dark(rgba(248, 249, 253, 0.96), rgba(26, 31, 51, 0.96));
+  --xrf-sheen: light-dark(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.09));
+  --xrf-tint: light-dark(rgba(20, 28, 48, 0.055), rgba(255, 255, 255, 0.075));
+  --xrf-tint-hi: light-dark(rgba(20, 28, 48, 0.025), rgba(255, 255, 255, 0.12));
+
+  /* controls: raised (buttons, pills), pressed, and recessed (inputs, boxes) */
+  --xrf-control: light-dark(rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.1));
+  --xrf-control-hover: light-dark(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.19));
+  --xrf-control-press: light-dark(rgba(20, 28, 48, 0.1), rgba(0, 0, 0, 0.3));
+  --xrf-well: light-dark(rgba(20, 28, 48, 0.07), rgba(0, 0, 0, 0.3));
+  /* the outline of an empty box or switch: 3:1 against the pane */
+  --xrf-control-line: light-dark(rgba(20, 28, 48, 0.5), rgba(255, 255, 255, 0.55));
+
+  /* the specular edge: bright along the top, dark along the bottom */
+  --xrf-spec: light-dark(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.32));
+  --xrf-rim: light-dark(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.09));
+  --xrf-rim-low: light-dark(rgba(20, 28, 48, 0.16), rgba(0, 0, 0, 0.5));
+  --xrf-hairline: light-dark(rgba(20, 28, 48, 0.1), rgba(255, 255, 255, 0.1));
+  --xrf-drop: light-dark(rgba(44, 32, 96, 0.26), rgba(0, 0, 0, 0.6));
+  --xrf-ring: linear-gradient(160deg, var(--xrf-spec) 0%, var(--xrf-rim) 28%, transparent 55%, var(--xrf-rim-low) 100%);
+  --xrf-edge: inset 0 1px 0 var(--xrf-spec), inset 0 -1px 0 var(--xrf-rim-low);
+  --xrf-edge-soft: inset 0 1px 1px var(--xrf-spec), inset 0 -10px 14px -12px var(--xrf-rim-low);
+  --xrf-lift: 0 1px 2px -1px var(--xrf-drop), 0 14px 30px -16px var(--xrf-drop);
+  --xrf-lift-small: 0 1px 2px -1px var(--xrf-drop), 0 5px 12px -9px var(--xrf-drop);
+  --xrf-sunk: inset 0 1px 2px var(--xrf-rim-low), inset 0 -1px 0 var(--xrf-rim);
+
+  --xrf-blur: blur(22px) saturate(185%);
+
+  /* shape and motion */
+  --xrf-r-pane: 20px;
+  --xrf-r-row: 12px;
+  --xrf-r-pill: 999px;
+  --xrf-fast: 160ms;
+  --xrf-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --xrf-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.xrf-glass.xrf-light { color-scheme: light; }
+.xrf-glass.xrf-dim, .xrf-glass.xrf-dark { color-scheme: dark; }
+
+/* No backdrop-filter: a see-through pane without blur is unreadable, so it goes near-solid. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .xrf-glass { --xrf-surface: var(--xrf-surface-solid); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .xrf-glass {
+    --xrf-surface: var(--xrf-surface-solid);
+    --xrf-blur: none;
+    --xrf-sheen: transparent;
+    --xrf-tint: light-dark(#eef0f4, #1d2026);
+    --xrf-tint-hi: var(--xrf-tint);
+    --xrf-control: light-dark(#fff, #2c3038);
+    --xrf-control-hover: light-dark(#f3f4f8, #3a3f49);
+  }
+  .xrf-glass.xrf-dim { --xrf-tint: #223040; --xrf-control: #304154; --xrf-control-hover: #3b4f65; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xrf-glass, .xrf-glass *, .xrf-glass *::before, .xrf-glass *::after { transition: none !important; animation: none !important; }
+}

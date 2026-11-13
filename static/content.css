@@ -1,7 +1,62 @@
-/* Injected on x.com. Only our own classes; X's own styles are left alone. */
+/* ==== Injected on x.com ====
+   Only our own classes, and the bar starts from `all: initial`, so X's styles
+   can't restyle it and nothing here can touch X's page. Colours come from
+   tokens.css; the bar's .xrf-light / .xrf-dim / .xrf-dark class (set by the
+   content script from X's own theme) picks the side of each light-dark().
+   A timeline can hold many bars and they scroll with it, so there is no
+   backdrop-filter here: X's page behind a bar is one flat colour, a blur
+   would cost frames and change nothing. The glass is drawn with a tinted
+   fill, a specular top edge and a soft inner shadow instead. */
 .xrf-collapsed > :not(.xrf-bar) { display: none !important; }
 .xrf-removed { display: none !important; }
-.xrf-bar { display: block; padding: 10px 16px; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: rgb(113, 118, 123); cursor: default; }
-div[role="link"].xrf-collapsed > .xrf-bar { padding: 8px 12px; }
-.xrf-bar button { padding: 0; border: 0; background: none; color: rgb(29, 155, 240); font: inherit; cursor: pointer; }
-.xrf-bar button:hover { text-decoration: underline; }
+
+.xrf-bar {
+  all: initial;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 40px;
+  margin: 8px 0;
+  padding: 6px 6px 6px 14px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--xrf-tint-hi), var(--xrf-tint));
+  box-shadow: var(--xrf-edge), inset 0 0 0 1px var(--xrf-hairline), inset 0 -10px 14px -12px var(--xrf-rim-low), var(--xrf-lift-small);
+  font: 13px/1.35 var(--xrf-font);
+  color: var(--xrf-muted);
+  cursor: default;
+}
+/* a quoted post's box is narrower and has its own rounded border */
+div[role="link"].xrf-collapsed > .xrf-bar { margin: 6px; }
+
+.xrf-bar > span { all: unset; flex: 1 1 14ch; min-width: 0; overflow-wrap: anywhere; }
+.xrf-bar > button {
+  all: unset;
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: 5px 12px;
+  border-radius: var(--xrf-r-pill);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--xrf-control);
+  box-shadow: var(--xrf-edge), inset 0 0 0 1px var(--xrf-hairline), var(--xrf-lift-small);
+  color: var(--xrf-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--xrf-fast) var(--xrf-ease), box-shadow var(--xrf-fast) var(--xrf-ease), transform var(--xrf-fast) var(--xrf-ease);
+}
+.xrf-bar > button:hover { background: var(--xrf-control-hover); }
+.xrf-bar > button:active { transform: scale(0.96); background: var(--xrf-control-press); box-shadow: var(--xrf-sunk); }
+.xrf-bar > button:focus-visible { outline: 2px solid var(--xrf-ink); outline-offset: 2px; }
+@media (pointer: coarse) {
+  .xrf-bar > button { min-height: 36px; padding: 8px 14px; }
+}
+@media (forced-colors: active) {
+  .xrf-bar, .xrf-bar > button { border: 1px solid CanvasText; }
+}

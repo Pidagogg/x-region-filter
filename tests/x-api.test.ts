@@ -62,6 +62,13 @@ test("rate-limit headers become a pause", () => {
   assert.equal(retryAfterMs(new Headers(), now), undefined);
 });
 
+test("an odd reset or retry-after header never pauses the queue for more than an hour", () => {
+  const now = 1_000_000_000_000;
+  // a reset time in milliseconds instead of seconds would otherwise mean a pause of years
+  assert.equal(retryAfterMs(new Headers({ "x-rate-limit-reset": String(now + 120_000) }), now), 60 * 60 * 1000);
+  assert.equal(retryAfterMs(new Headers({ "retry-after": "999999" }), now), 60 * 60 * 1000);
+});
+
 test("x-rate-limit-remaining under 10 means wait until x-rate-limit-reset", () => {
   const now = 1_000_000_000_000;
   const reset = String(now / 1000 + 300);

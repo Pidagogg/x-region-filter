@@ -171,12 +171,16 @@ export function rateWaitMs(headers: Headers, now = Date.now()): number | undefin
   return ms > 0 ? ms : undefined;
 }
 
-/** x-rate-limit-reset is a Unix time in seconds; Retry-After is seconds. */
+/**
+ * x-rate-limit-reset is a Unix time in seconds; Retry-After is seconds. Capped
+ * at an hour like rateWaitMs: an odd header must not stall the queue for days.
+ */
 export function retryAfterMs(headers: Headers, now = Date.now()): number | undefined {
+  const cap = 60 * 60 * 1000;
   const reset = Number(headers.get("x-rate-limit-reset"));
-  if (reset > 0) return Math.max(5_000, reset * 1000 - now);
+  if (reset > 0) return Math.min(Math.max(5_000, reset * 1000 - now), cap);
   const after = Number(headers.get("retry-after"));
-  return after > 0 ? after * 1000 : undefined;
+  return after > 0 ? Math.min(after * 1000, cap) : undefined;
 }
 
 // ---- putting it together, in the x.com tab ----

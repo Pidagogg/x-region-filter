@@ -57,6 +57,16 @@ test("X's rate-limit hint makes every tab wait until the reset", async () => {
   assert.equal(await other.check(), 0);
 });
 
+test("lookups that sent nothing (logged out) do not use up the hourly budget", async () => {
+  const kv = memoryKV();
+  const g = createGuard(kv, () => HOUR * 10);
+  for (let i = 0; i < HOURLY_BUDGET + 5; i++) {
+    assert.equal(await g.check(), 0);
+    await g.record({ ok: false, status: 401, skipped: true });
+  }
+  assert.equal(await g.check(), 0, "logging in right after still gets lookups");
+});
+
 test("at most 300 lookups per rolling hour, counted across tabs", async () => {
   let now = HOUR * 10;
   const kv = memoryKV();

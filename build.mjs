@@ -28,8 +28,10 @@ function manifest(target) {
     action: { default_popup: "popup.html", default_icon: { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png" } },
     permissions: ["storage"],
     host_permissions: SITES,
-    content_scripts: [{ matches: SITES, js: ["content.js"], css: ["content.css"], run_at: "document_idle" }],
+    content_scripts: [{ matches: SITES, js: ["content.js"], css: ["tokens.css", "content.css"], run_at: "document_idle" }],
   };
+  // the styles use CSS light-dark(), which Chrome has from 123 (Firefox's minimum below is already past it)
+  if (target === "chrome") m.minimum_chrome_version = "123";
   if (target === "firefox") {
     m.browser_specific_settings = {
       gecko: { id: "x-region-filter@w-flow.tech", strict_min_version: "140.0", data_collection_permissions: { required: ["none"] } },

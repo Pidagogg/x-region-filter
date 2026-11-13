@@ -9,6 +9,7 @@ import { placeName, t } from "./i18n.ts";
 import { createQueue } from "./queue.ts";
 import { decide, type Decision, type Lookup, type Settings } from "./settings.ts";
 import { addHidden, cacheStore, getSettings, lookupGuard, updateSettings, watchSettings } from "./store.ts";
+import { themeFromBackground, type Theme } from "./theme.ts";
 import { createLookup } from "./x-api.ts";
 
 // ---- X markup ----
@@ -130,9 +131,38 @@ function countHidden(el: HTMLElement) {
   }, 3000);
 }
 
+// ---- X's theme ----
+
+// X picks light, dim or lights out itself and paints it as the body background;
+// the bars follow that, not the system setting. Read once, then only when X
+// restyles the body, so making a bar costs no style lookup.
+let theme: Theme | null = null;
+const THEMES: Theme[] = ["light", "dim", "dark"];
+
+function readTheme(): Theme {
+  return themeFromBackground(document.body ? getComputedStyle(document.body).backgroundColor : "", matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+function paint(bar: Element, th: Theme) {
+  for (const name of THEMES) bar.classList.toggle(`xrf-${name}`, name === th);
+}
+
+function watchTheme() {
+  const update = () => {
+    const next = readTheme();
+    if (next === theme) return;
+    theme = next;
+    for (const bar of Array.from(document.querySelectorAll(".xrf-bar"))) paint(bar, next);
+  };
+  if (document.body) new MutationObserver(update).observe(document.body, { attributes: true, attributeFilter: ["style", "class"] });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update);
+}
+
 function makeBar(target: Target, d: Extract<Decision, { hide: true }>): HTMLElement {
   const bar = document.createElement("div");
-  bar.className = "xrf-bar";
+  // xrf-glass carries the shared tokens (tokens.css)
+  bar.className = "xrf-bar xrf-glass";
+  paint(bar, (theme ??= readTheme()));
   const text = document.createElement("span");
   text.textContent = d.region ? t.barHidden(placeName(d.region)) : t.barUnknown;
   const button = (label: string, onClick: () => void) => {
@@ -149,12 +179,10 @@ function makeBar(target: Target, d: Extract<Decision, { hide: true }>): HTMLElem
   };
   bar.append(
     text,
-    " · ",
     button(t.show, () => {
       revealed.add(target.el);
       apply(target, { hide: false });
     }),
-    " · ",
     button(t.alwaysShow(target.handle), () => {
       if (settings) void updateSettings({ allow: [...new Set([...settings.allow, target.handle])] });
     })
@@ -279,5 +307,6 @@ const schedule = () => {
   });
   new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
   schedule();
+  watchTheme();
   addEventListener("pagehide", () => void cache.flush());
 })();

@@ -1,78 +1,188 @@
-/* The popup. Same look as City Compare: frosted glass on a soft colour field. */
-:root {
-  color-scheme: light dark;
-  --ink: #1b2030; --bg: #fff; --line: #d9dee8; --accent: #ff5c42; --muted: #5d6679;
-  --glass: rgba(255, 255, 255, 0.55); --glass-soft: rgba(255, 255, 255, 0.6); --rim: rgba(255, 255, 255, 0.7);
-  --edge: rgba(27, 32, 48, 0.12);
-  --shine: inset 0 1px 0 rgba(255, 255, 255, 0.8); --lift: 0 8px 24px -10px rgba(30, 20, 60, 0.35);
-  --blur: blur(16px) saturate(170%);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #eef1f8; --bg: #10131f; --line: #2c3447; --muted: #a3acc1;
-    --glass: rgba(28, 33, 52, 0.5); --glass-soft: rgba(255, 255, 255, 0.06); --rim: rgba(255, 255, 255, 0.14); --edge: rgba(255, 255, 255, 0.16);
-    --shine: inset 0 1px 0 rgba(255, 255, 255, 0.12); --lift: 0 10px 28px -10px rgba(0, 0, 0, 0.6);
-  }
-}
+/* ==== The popup ====
+   Liquid glass: see-through panes over a calm colour field, each with a bright
+   specular edge, a soft inner shadow and a depth shadow. All colours, shadows,
+   radii and timings come from tokens.css (shared with the bars on x.com). */
 * { box-sizing: border-box; }
-body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
-.popup { width: 360px; padding: 14px; position: relative; isolation: isolate; overflow-x: hidden; }
+html { background: light-dark(#eceef7, #0b0e1b); }
+body { margin: 0; font: 14px/1.45 var(--xrf-font); color: var(--xrf-ink); }
+.popup { width: 372px; padding: 12px; position: relative; isolation: isolate; overflow-x: hidden; }
+
+/* The colour field. Nothing sits behind a popup, so this is what the glass
+   refracts; it stays put while the panes scroll over it. */
 .popup::before {
   content: "";
-  position: absolute;
-  inset: -40px;
+  position: fixed;
+  inset: 0;
   z-index: -1;
   background:
-    radial-gradient(45% 35% at 10% 5%, rgba(255, 92, 66, 0.55), transparent 70%),
-    radial-gradient(40% 35% at 95% 30%, rgba(122, 92, 255, 0.45), transparent 70%),
-    radial-gradient(50% 40% at 40% 100%, rgba(255, 179, 71, 0.4), transparent 70%);
-  filter: blur(24px);
+    radial-gradient(60% 34% at 4% 0%, light-dark(rgba(255, 108, 80, 0.62), rgba(255, 92, 66, 0.46)), transparent 72%),
+    radial-gradient(56% 38% at 100% 22%, light-dark(rgba(128, 104, 255, 0.55), rgba(122, 92, 255, 0.5)), transparent 72%),
+    radial-gradient(60% 36% at 0% 62%, light-dark(rgba(64, 196, 214, 0.42), rgba(40, 160, 190, 0.34)), transparent 72%),
+    radial-gradient(62% 36% at 96% 100%, light-dark(rgba(255, 186, 84, 0.55), rgba(255, 160, 60, 0.36)), transparent 72%);
 }
-h1 { font-size: 16px; margin: 0; }
-.rf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.rf-hint { color: var(--muted); font-size: 12.5px; margin: 8px 0; }
-.rf-note { color: var(--muted); font-size: 11px; margin: 8px 0 0; }
-.rf-sub { color: var(--muted); font-size: 11.5px; margin: 6px 0 2px; }
-.rf-card { margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--rim); border-radius: 14px; background: var(--glass); box-shadow: var(--shine), var(--lift); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); min-width: 0; }
+
+/* ---- panes ---- */
+
+.rf-card, .rf-promo {
+  position: relative;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--xrf-r-pane);
+  background: linear-gradient(180deg, var(--xrf-sheen), transparent 46%), var(--xrf-surface);
+  box-shadow: var(--xrf-edge-soft), var(--xrf-lift);
+  -webkit-backdrop-filter: var(--xrf-blur);
+  backdrop-filter: var(--xrf-blur);
+  min-width: 0;
+}
+/* the thin gradient border: bright where the light falls, dark at the far corner */
+.rf-card::before, .rf-promo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--xrf-ring);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.rf-card:first-child { margin-top: 0; }
 .rf-card:empty { display: none; }
-.rf-card > b { display: block; margin-bottom: 4px; }
-.rf-check { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; font-size: 13px; }
-.rf-check input { margin: 0; accent-color: var(--accent); }
-.rf-switch { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
-.rf-switch input { accent-color: var(--accent); }
-.rf-pick-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.rf-pick-head b { flex: 1; }
-.rf-count { color: var(--muted); font-size: 12px; }
-.rf-link { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; }
-.rf-card input[type="search"] { width: 100%; padding: 8px 12px; border: 1px solid var(--rim); border-radius: 12px; background: var(--glass-soft); color: var(--ink); font: inherit; outline: none; box-shadow: var(--shine); }
-.rf-card input[type="search"]:focus { border-color: rgba(255, 92, 66, 0.7); box-shadow: 0 0 0 3px rgba(255, 92, 66, 0.2); }
-.rf-picker { max-height: 260px; overflow-y: auto; margin-top: 6px; padding-right: 4px; }
-.rf-region { border-bottom: 1px solid var(--edge); }
+.rf-card > b { display: block; margin-bottom: 6px; font-size: 13.5px; }
+
+/* ---- text ---- */
+
+h1 { font-size: 16px; line-height: 1.25; margin: 0; letter-spacing: -0.01em; }
+.rf-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rf-hint { color: var(--xrf-muted); font-size: 12.5px; margin: 8px 0 0; }
+.rf-note { color: var(--xrf-muted); font-size: 11.5px; margin: 6px 0 0; }
+.rf-sub { color: var(--xrf-muted); font-size: 11.5px; margin: 8px 0 2px; }
+.rf-stat { margin: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---- boxes, radios and the switch: recessed wells that fill with the accent ---- */
+
+.rf-check { display: flex; align-items: center; gap: 9px; padding: 4px 6px; margin: 0 -6px; border-radius: var(--xrf-r-row); cursor: pointer; font-size: 13px; transition: background-color var(--xrf-fast) var(--xrf-ease); }
+.rf-switch { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--xrf-muted); cursor: pointer; white-space: nowrap; }
+.rf-check input, .rf-switch input {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  margin: 0;
+  display: inline-grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: var(--xrf-well);
+  box-shadow: inset 0 0 0 1px var(--xrf-control-line), var(--xrf-sunk);
+  cursor: pointer;
+  transition: background-color var(--xrf-fast) var(--xrf-ease), box-shadow var(--xrf-fast) var(--xrf-ease), transform var(--xrf-fast) var(--xrf-ease);
+}
+.rf-check input[type="radio"] { border-radius: 50%; }
+.rf-check input::before { content: ""; transform: scale(0); transition: transform var(--xrf-fast) var(--xrf-ease); }
+.rf-check input[type="checkbox"]::before { width: 10px; height: 6px; margin-top: -2px; border: solid #fff; border-width: 0 0 2px 2px; transform: rotate(-45deg) scale(0); }
+.rf-check input[type="radio"]::before { width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.25); }
+.rf-check input:checked, .rf-check input:indeterminate, .rf-switch input:checked {
+  background: var(--xrf-accent-fill);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.22), 0 3px 8px -3px rgba(226, 64, 31, 0.75);
+}
+.rf-check input[type="checkbox"]:checked::before { transform: rotate(-45deg) scale(1); }
+.rf-check input[type="radio"]:checked::before { transform: scale(1); }
+.rf-check input[type="checkbox"]:indeterminate::before { width: 9px; height: 0; margin-top: 0; border-width: 0 0 2px; transform: none; }
+.rf-check input:active, .rf-switch input:active { transform: scale(0.92); }
+
+.rf-switch input { width: 40px; height: 24px; border-radius: var(--xrf-r-pill); place-content: center start; padding: 0 3px; }
+.rf-switch input::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fff, #e9ecf4);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: transform var(--xrf-fast) var(--xrf-ease);
+}
+.rf-switch input:checked::before { transform: translateX(16px); }
+.rf-switch input:active { transform: none; }
+
+/* ---- the picker ---- */
+
+.rf-pick-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rf-pick-head b { flex: 1; font-size: 13.5px; }
+.rf-count { flex: none; padding: 1px 8px; border-radius: var(--xrf-r-pill); background: var(--xrf-accent-tint); box-shadow: inset 0 1px 0 var(--xrf-rim); color: var(--xrf-ink); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rf-count:empty { display: none; }
+.rf-link { padding: 2px 9px; border: 0; border-radius: var(--xrf-r-pill); background: none; color: var(--xrf-accent-ink); cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; transition: background-color var(--xrf-fast) var(--xrf-ease), transform var(--xrf-fast) var(--xrf-ease); }
+.rf-card input[type="search"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--xrf-r-pill);
+  background: var(--xrf-well);
+  box-shadow: var(--xrf-sunk), inset 0 0 0 1px var(--xrf-hairline);
+  color: var(--xrf-ink);
+  font: inherit;
+  outline: none;
+  transition: background-color var(--xrf-fast) var(--xrf-ease), box-shadow var(--xrf-fast) var(--xrf-ease);
+}
+.rf-card input[type="search"]::placeholder { color: var(--xrf-muted); opacity: 1; }
+.rf-card input[type="search"]:focus { background: var(--xrf-control); box-shadow: var(--xrf-sunk), 0 0 0 2px var(--xrf-accent-ink); }
+.rf-picker { max-height: 260px; overflow-y: auto; margin: 8px -6px 0; padding: 0 6px; scrollbar-width: thin; scrollbar-color: var(--xrf-control-line) transparent; }
+.rf-region { border-bottom: 1px solid var(--xrf-hairline); padding: 2px 0; }
 .rf-region:last-child { border-bottom: 0; }
 .rf-region-head { display: flex; align-items: center; gap: 6px; }
-.rf-region-name { flex: 1; font-weight: 600; }
-.rf-expand { width: 26px; height: 26px; border: 1px solid transparent; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; font-size: 13px; }
-.rf-region-body { padding: 0 0 6px 4px; }
-.rf-button { margin-top: 6px; padding: 6px 12px; border: 1px solid var(--edge); border-radius: 999px; background: var(--glass-soft); color: var(--ink); cursor: pointer; font: inherit; font-size: 13px; box-shadow: var(--shine); }
-.rf-allow { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.rf-allow li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.rf-allow li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.rf-allow button { width: 24px; height: 24px; border: 1px solid transparent; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
-.rf-promo { display: flex; gap: 6px; align-items: flex-start; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--rim); border-radius: 14px; font-size: 12px; color: var(--muted); background: linear-gradient(135deg, rgba(122, 92, 255, 0.18), var(--glass)); box-shadow: var(--shine), var(--lift); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
-.rf-promo a { flex: 1; color: var(--muted); text-decoration: none; }
-.rf-promo b { color: var(--ink); font-size: 12.5px; }
-.rf-promo button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; }
+.rf-region-name { flex: 1; font-weight: 600; min-width: 0; }
+.rf-region-body { padding: 0 0 6px 6px; }
+
+/* ---- buttons: raised glass ---- */
+
+.rf-expand, .rf-allow button, .rf-promo button, .rf-button {
+  border: 0;
+  background: var(--xrf-control);
+  box-shadow: var(--xrf-edge), inset 0 0 0 1px var(--xrf-hairline), var(--xrf-lift-small);
+  color: var(--xrf-ink);
+  cursor: pointer;
+  font: inherit;
+  transition: background-color var(--xrf-fast) var(--xrf-ease), box-shadow var(--xrf-fast) var(--xrf-ease), transform var(--xrf-fast) var(--xrf-ease);
+}
+.rf-expand, .rf-allow button, .rf-promo button { flex: none; display: inline-grid; place-content: center; width: 26px; height: 26px; padding: 0; border-radius: 50%; color: var(--xrf-muted); line-height: 1; }
+.rf-expand { font-size: 12px; }
+.rf-allow button, .rf-promo button { font-size: 15px; }
+.rf-button { margin-top: 8px; padding: 7px 16px; border-radius: var(--xrf-r-pill); font-size: 13px; font-weight: 600; }
+.rf-expand:active, .rf-allow button:active, .rf-promo button:active, .rf-button:active, .rf-link:active { transform: scale(0.94); background: var(--xrf-control-press); box-shadow: var(--xrf-sunk); }
+
+.rf-allow { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rf-allow li { display: flex; align-items: center; gap: 8px; padding: 3px 3px 3px 12px; border-radius: var(--xrf-r-pill); background: var(--xrf-tint); font-size: 13px; }
+.rf-allow li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- the W flow card: the same pane with a violet cast ---- */
+
+.rf-promo { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--xrf-muted); background: linear-gradient(135deg, var(--xrf-violet-tint), transparent 70%), linear-gradient(180deg, var(--xrf-sheen), transparent 46%), var(--xrf-surface); transition: box-shadow var(--xrf-fast) var(--xrf-ease), transform var(--xrf-fast) var(--xrf-ease); }
+.rf-promo a { flex: 1; min-width: 0; color: var(--xrf-muted); text-decoration: none; border-radius: 8px; }
+.rf-promo b { color: var(--xrf-ink); font-size: 12.5px; }
+
+/* ---- states ---- */
+
+:focus-visible { outline: 2px solid var(--xrf-accent-ink); outline-offset: 2px; }
 @media (hover: hover) {
-  .rf-expand:hover, .rf-allow button:hover { color: var(--ink); border-color: rgba(255, 92, 66, 0.7); background: rgba(255, 92, 66, 0.16); }
-  .rf-button:hover { border-color: rgba(255, 92, 66, 0.7); background: rgba(255, 92, 66, 0.16); }
-  .rf-promo:hover { border-color: rgba(122, 92, 255, 0.6); }
+  .rf-check:hover { background: var(--xrf-tint); }
+  .rf-check:hover input:not(:checked):not(:indeterminate) { background: var(--xrf-control); }
+  .rf-expand:hover, .rf-allow button:hover, .rf-promo button:hover, .rf-button:hover { background: var(--xrf-control-hover); color: var(--xrf-ink); }
+  .rf-link:hover { background: var(--xrf-accent-tint); }
+  .rf-promo:hover { transform: translateY(-1px); box-shadow: var(--xrf-edge-soft), 0 2px 3px -1px var(--xrf-drop), 0 18px 34px -16px var(--xrf-drop); }
 }
 @media (pointer: coarse) {
   .rf-card input[type="search"] { min-height: 44px; font-size: 16px; }
   .rf-check { min-height: 40px; }
-  .rf-expand, .rf-allow button, .rf-promo button { min-width: 44px; min-height: 44px; }
+  .rf-expand, .rf-allow button, .rf-promo button { width: 44px; height: 44px; }
 }
 @media (max-width: 600px) and (pointer: coarse) {
   .popup { width: auto; }
   .rf-picker { max-height: none; }
+}
+/* Windows high contrast drops the shadows that draw the controls, so they get real borders */
+@media (forced-colors: active) {
+  .rf-card, .rf-promo, .rf-check input, .rf-switch input, .rf-card input[type="search"], .rf-expand, .rf-allow button, .rf-promo button, .rf-button { border: 1px solid CanvasText; }
+  .rf-check input:checked, .rf-check input:indeterminate, .rf-switch input:checked { background: Highlight; }
 }
