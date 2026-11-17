@@ -93,7 +93,7 @@ if (zip && !watch) {
     const dir = path.resolve("dist", target);
     zipDir(path.resolve(`x-region-filter-${target}-${pkg.version}.zip`), dir, fs.readdirSync(dir));
   }
-  const source = ["src", "static", "scripts", "tests", "docs", "build.mjs", "package.json", "package-lock.json", "tsconfig.json", "README.md"].filter((f) => fs.existsSync(f));
+  const source = ["src", "static", "scripts", "tests", "docs", "build.mjs", "package.json", "package-lock.json", "tsconfig.json", "README.md", "LICENSE"].filter((f) => fs.existsSync(f));
   zipDir(path.resolve(`x-region-filter-source-${pkg.version}.zip`), path.resolve("."), source);
 }
 console.log(watch ? "watching…" : "built dist/chrome and dist/firefox");

@@ -51,3 +51,7 @@ To load it unpacked:
 - `src/popup.ts`, `static/`: the popup. `src/welcome.ts`: the welcome page, opened once after install by `src/background.ts`. `src/i18n.ts`: English and Russian.
 
 The popup has one small, dismissible link to W flow (the welcome page has the same card), a workflow automation tool by the same developer.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
